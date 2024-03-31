@@ -10,6 +10,9 @@ class DistFunc:
     def __init__(self):
         return
 
+    def norm(self):
+        return 1
+
     def get_frac(self,**kwargs):
         """evaluate distribution function"""
         return
@@ -21,6 +24,10 @@ class ThermalDistribution(DistFunc):
     def __init__(self):
         DistFunc.__init__(self)
         return
+
+    def norm(self):
+        """returns normalization constant for integral of dndgamma function below. 1 for thermal MJ distribution"""
+        return 1
 
     def frac(self,**kwargs):
         """function that takes gamma to get the simplified distribution df/dlog(gamma) for sampling (ignores normalization constants)"""
@@ -93,9 +100,10 @@ class ThermalDistribution(DistFunc):
 
 
     def test_sampling(self,thetae=10,nsamples=1e3,gamma_min=1,gamma_max=1e3,**kwargs):
+        """ tests the sampling procedure by sampling nsamples of gamma from the distribution function and plots out vs. the expected distribution"""
         log_gammas=[]
         param_dict = {**kwargs,"thetae":thetae,"gamma_min":gamma_min,"gamma_max":gamma_max}
-        for i in np.arange(nsamples):
+        for _ in np.arange(nsamples):
             log_gammas.append(self.sample_distribution(**param_dict)*np.log10(np.e))
         # now plot
         fig,ax = plt.subplots()
