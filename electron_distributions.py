@@ -5,6 +5,7 @@ import random
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 import sampling
+import utils
 
 class DistFunc:
     def __init__(self):
@@ -20,13 +21,19 @@ class DistFunc:
     def sample_distribution(self,**kwargs):
         return
 
+    def check_scattering_limits(self,photon_energy,**kwargs):
+        """
+        given some photon energy, return the appropriate scattering 
+        """
+        return -1
+
 class ThermalDistribution(DistFunc):
     def __init__(self):
         DistFunc.__init__(self)
         return
 
     def norm(self):
-        """returns normalization constant for integral of dndgamma function below. 1 for thermal MJ distribution"""
+        """returns normalization constant for integral of dndgammae function below. 1 for thermal MJ distribution"""
         return 1
 
     def frac(self,**kwargs):
@@ -43,7 +50,7 @@ class ThermalDistribution(DistFunc):
         beta = 1 - 1/gammae**2
         return ne/thetae / (special.kn(2,1/thetae)) * self.frac(**kwargs)
 
-    def dndgamma(self,**kwargs):
+    def dndgammae(self,**kwargs):
         """relativistic thermal distribution function wrt (gammae)"""
         thetae = kwargs["thetae"]
         ne = kwargs["ne"]
@@ -84,19 +91,33 @@ class ThermalDistribution(DistFunc):
         return log_gammae_samp
         # dist_max_gammae = np.exp(optimize.fsolve(deriv_function,1.0))
         # # print(np.log(dist_max_gammae),kwargs["thetae"]);exit()
-        # dist_max = self.dndgamma(gammae=dist_max_gammae,**kwargs)
+        # dist_max = self.dndgammae(gammae=dist_max_gammae,**kwargs)
         # niter=0
         # while (1):
         #     gamma_min = kwargs["gamma_min"]
         #     gamma_max=kwargs["gamma_max"]
         #     gammae_samp = sampling.sample_1d_log(np.log(gamma_min),np.log(gamma_max))
-        #     dist_sample = self.dndgamma(gammae=gammae_samp,**kwargs)
+        #     dist_sample = self.dndgammae(gammae=gammae_samp,**kwargs)
         #     rand_num = random.random()
         #     niter+=1
         #     if (dist_sample/dist_max > rand_num):
         #         # print(dist_sample/dist_max,rand_num,niter)
         #         break
         # return gammae_samp
+
+    def check_scattering_limits(self,photon_energy,**kwargs):
+        """
+        return sigma_t or sigma_kn cross section based on dist func params
+        """
+        from hotcross import sigma_kn
+        print(kwargs['thetae'],photon_energy)
+        print(utils.bounds['thetae_min'],utils.bounds['photon_energy_min'])
+        if(kwargs['thetae'] < utils.bounds['thetae_min'] and photon_energy < utils.bounds['photon_energy_min']):
+            return utils.constants['sigma_thomson']
+        elif (kwargs['thetae'] < utils.bounds['thetae_min']):
+            return sigma_kn(photon_energy)
+        else:
+            return -1
 
 
     def test_sampling(self,thetae=10,nsamples=1e3,gamma_min=1,gamma_max=1e3,**kwargs):
@@ -117,4 +138,6 @@ class ThermalDistribution(DistFunc):
 
 if __name__ == "__main__":
     thermal_dist = ThermalDistribution()
-    thermal_dist.test_sampling(nsamples=1e4,gamma_min=1,gamma_max=1e3,thetae=100,ne=1)
+    # print(issubclass(thermal_dist,DistFunc))
+    print(type(thermal_dist))
+    # thermal_dist.test_sampling(nsamples=1e4,gamma_min=1,gamma_max=1e3,thetae=100,ne=1)
