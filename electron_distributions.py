@@ -47,7 +47,7 @@ class ThermalDistribution(DistFunc):
         thetae = kwargs["thetae"]
         ne = kwargs["ne"]
         gammae = kwargs["gammae"]
-        beta = 1 - 1/gammae**2
+        beta = np.sqrt(1 - 1/gammae**2)
         return ne/thetae / (special.kn(2,1/thetae)) * self.frac(**kwargs)
 
     def dndgammae(self,**kwargs):
@@ -55,8 +55,13 @@ class ThermalDistribution(DistFunc):
         thetae = kwargs["thetae"]
         ne = kwargs["ne"]
         gammae = kwargs["gammae"]
-        beta = 1 - 1/gammae**2
-        return ne/thetae / (special.kn(2,1/thetae)) * gammae**2 * beta * np.exp(-gammae/thetae)
+        beta = np.sqrt(1 - 1/gammae**2)
+        # multiply K2 by exp(1/thetae) for numerical stability -- copied from igrmonty
+        if(thetae > 1e-2):
+            k2 = special.kn(2,1/thetae) * np.exp(1/thetae)
+        else:
+            k2 = np.sqrt(np.pi * thetae/ 2)
+        return ne/(thetae*k2) * gammae * np.sqrt(gammae**2 - 1) * np.exp(-(gammae-1)/thetae)
 
     def frac_derivative(self,**kwargs):
         """gives parts of derivative of frac g(gamma) such that dist. func is maximized when g(gamma)=0"""
@@ -110,8 +115,8 @@ class ThermalDistribution(DistFunc):
         return sigma_t or sigma_kn cross section based on dist func params
         """
         from hotcross import sigma_kn
-        print(kwargs['thetae'],photon_energy)
-        print(utils.bounds['thetae_min'],utils.bounds['photon_energy_min'])
+        # print(photon_energy,kwargs['thetae'])
+        # print(utils.bounds['thetae_min'],utils.bounds['photon_energy_min'])
         if(kwargs['thetae'] < utils.bounds['thetae_min'] and photon_energy < utils.bounds['photon_energy_min']):
             return utils.constants['sigma_thomson']
         elif (kwargs['thetae'] < utils.bounds['thetae_min']):
@@ -139,5 +144,6 @@ class ThermalDistribution(DistFunc):
 if __name__ == "__main__":
     thermal_dist = ThermalDistribution()
     # print(issubclass(thermal_dist,DistFunc))
-    print(type(thermal_dist))
+    # print(type(thermal_dist))
+    print(thermal_dist.dndgammae(ne=1,thetae=1e-4,gammae=1.0011775))
     # thermal_dist.test_sampling(nsamples=1e4,gamma_min=1,gamma_max=1e3,thetae=100,ne=1)

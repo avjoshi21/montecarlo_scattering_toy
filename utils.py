@@ -10,9 +10,11 @@ constants['M0'] = 1.99e33
 constants['pc'] = 3.0857e18
 constants['h'] = 6.62607015e-27
 constants['sigma_thomson'] = 0.665245873e-24
+constants['eV'] = 1.602176634e-12
 
 
 bounds = {}
 bounds['thetae_min'] = 1e-4
 bounds['photon_energy_min'] = 1e-12
-bounds['gammae_max'] = lambda thetae: 12*thetae
+bounds['gammae_max'] = lambda thetae: 1 + 12*thetae
+# bounds['gammae_max'] = 12
