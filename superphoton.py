@@ -14,4 +14,4 @@ class Superphoton:
         self.tau_absorp = 0.0
 
     # member functions
-    def push_photon(self,dl):
+    # def push_photon(self,dl):

@@ -113,17 +113,23 @@ class ThermalDistribution(DistFunc):
     def check_scattering_limits(self,photon_energy,**kwargs):
         """
         return sigma_t or sigma_kn cross section based on dist func params
+        there's a normal way to do this and a numpy way to do this for speedup
         """
+
         from hotcross import sigma_kn
         # print(photon_energy,kwargs['thetae'])
         # print(utils.bounds['thetae_min'],utils.bounds['photon_energy_min'])
-        if(kwargs['thetae'] < utils.bounds['thetae_min'] and photon_energy < utils.bounds['photon_energy_min']):
-            return utils.constants['sigma_thomson']
-        elif (kwargs['thetae'] < utils.bounds['thetae_min']):
-            return sigma_kn(photon_energy)
-        else:
-            return -1
+        # if(kwargs['thetae'] < utils.bounds['thetae_min'] and photon_energy < utils.bounds['photon_energy_min']):
+        #     return utils.constants['sigma_thomson']
+        # elif (kwargs['thetae'] < utils.bounds['thetae_min']):
+        #     return sigma_kn(photon_energy)
+        # else:
+        #     return -1
 
+        # numpy way
+        condition_numpy = np.where(kwargs['thetae'] < utils.bounds['thetae_min'] and photon_energy < utils.bounds['photon_energy_min'],utils.constants['sigma_thomson'],\
+            np.where(kwargs['thetae'] < utils.bounds['thetae_min'] and photon_energy >= utils.bounds['photon_energy_min'],sigma_kn(photon_energy),-1))
+        return condition_numpy
 
     def test_sampling(self,thetae=10,nsamples=1e3,gamma_min=1,gamma_max=1e3,**kwargs):
         """ tests the sampling procedure by sampling nsamples of gamma from the distribution function and plots out vs. the expected distribution"""
