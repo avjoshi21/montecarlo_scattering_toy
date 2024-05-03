@@ -11,7 +11,6 @@ class Domain:
     """
     def __init__(self,num_superphotons):
         self.num_superphotons=num_superphotons
-        
 
 
 class OnezoneScattering(Domain):
@@ -20,11 +19,17 @@ class OnezoneScattering(Domain):
     """
     def __init__(self,**kwargs):
         Domain.__init__(self,kwargs["num_superphotons"])
+        # temperature of scattering medium
         self.thetae = kwargs["thetae"]
+        # temperature of blackbody source at center
         self.thetabb = kwargs["thetabb"]
+        # number density of scattering medium
         self.ne = kwargs["ne"]
+        # radius of scattering medium
         self.radius = kwargs["radius"]
+        # superphotons array object. number will vastly increase as scatterings occur, keep as array?
         self.superphotons = np.array([sp.Superphoton() for _ in range(self.num_superphotons)])
+        # geometry of problem (currently not used as geodesics handles flatspace)
         self.geom = geometry.MinkowskiSpherical()
         
     def init_superphotons(self,nuMin,nuMax):

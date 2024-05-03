@@ -1,5 +1,6 @@
 """ module to load and precompute the 'hot cross section' for a given distribution function"""
 from scipy import integrate
+from scipy import interpolate
 import numpy as np
 import utils
 import electron_distributions as edf
@@ -10,8 +11,12 @@ def sigma_thomson():
 
 def sigma_kn(eps_e):
     """return the klein nishina cross section
-    parameters:
+    
+    Parameters:
     eps_e -- photon energy in electron rest frame
+    
+    Returns:
+    Klein-Nishina cross section
     """
     eps_e = np.asarray(eps_e)
     kn_loweps =  (1 - 2*eps_e)
@@ -42,10 +47,15 @@ def compute_hotcross(dist_func,photon_energy,**kwargs):
     sigma_invariant = lambda photon_energy,gammae,mu: sigma_kn(photon_energy * gammae * (1 - mu * beta(gammae)))
     
     def hotcross_integrand(gammae,mu,phi=0):
-        """collect all terms of integrand for hotcross integration
-        parameters:
+        """
+        Collect all terms of integrand for hotcross integration
+        
+        Parameters:
         mu -- cosine(theta) where theta is the angle between photon and electron
         phi -- azimuthal angle about the spatial part of the photon k^mu
+
+        Returns:
+        integrand for hotcross integration
 
         Note that for anisotropic distributions, there will be another angle of relevance that is the angle (xi) between the photon and B in the plasma frame.
         When evaluating the distribution function, the angles mu and phi need to be changed into xi and varphi (azimuthal angle about B).
@@ -76,16 +86,33 @@ def compute_hotcross(dist_func,photon_energy,**kwargs):
 def generate_sigma_hot_fit(dist_func: edf.DistFunc,table_params,**kwargs):
     """
     Compute values of the hot cross section based on a table of parameters ((photon energy, temperature) for thermal dist, for example)
-    parameters:
+    
+    Parameters:
     dist_func -- distribution function of electrons
-    table_params -- np.meshgrid object file spanning n dimensions consisting of parameters of the distribution function and incident photon energy
+    table_params -- dictionary consisting of parameters of the distribution function and incident photon energy
+    
     Returns:
     sigma_hot_fit_func -- An n-dimensional linear interpolation function over the table of parameters
     """
 
     # data = np.zeros_like(table_params[0])
-    # table_params[]
-    return
+    param_keys=[]
+    param_vals=[]
+    for key,val in table_params.items():
+        param_keys.append(key)
+        param_vals.append(val)
+    if("photon_energy" not in param_keys):
+        print("'photon energy' necessary parameter for computing cross sections!");exit();
+    table_params_meshgrid = np.array(np.meshgrid(*param_vals))
+    sigma_hot_vals = np.zeros(shape=table_params_meshgrid[0].shape)
+    for i,_ in enumerate(sigma_hot_vals.flat):
+        for j,param in enumerate(param_keys):
+            kwargs[param]  = table_params_meshgrid[j].flat[i]
+        
+        sigma_hot_vals[np.unravel_index(i,sigma_hot_vals.shape)] = compute_hotcross(dist_func=dist_func,**kwargs)
+    
+    sigma_hot_interp = interpolate.RegularGridInterpolator(param_vals,sigma_hot_vals,method='linear')
+    return sigma_hot_interp
 
 def test_sigma_hotcross():
     """test sigma hotcross computation comparing values to Wienke 1985
@@ -102,10 +129,26 @@ def test_sigma_hotcross():
     kwargs = {'ne':1,'thetae':1e-4}
     # print(thermal_dist.dndgammae(ne=1,gammae=1.0011225,thetae=0.0001));exit()
     # print(compute_hotcross(thermal_dist,photon_energy=1e-12,**kwargs))
-    for eps in nuVals:
-        for thetae in tempVals:
-            print(f"{compute_hotcross(thermal_dist,photon_energy=eps,thetae=thetae,ne=1):.4e}")
+    sigma_hotcross_array = np.zeros((nuVals.shape[0],tempVals.shape[0]))
+    for i,eps in enumerate(nuVals):
+        for j,thetae in enumerate(tempVals):
+            sigma_hotcross_array[i,j] = compute_hotcross(thermal_dist,photon_energy=eps,thetae=thetae,ne=1)
+            print(f"{sigma_hotcross_array[i,j]:.4e}")
 
+def test_sigma_hotcross_interp():
+    thermal_dist = edf.ThermalDistribution()
+    # temperature in keV from Wienke
+    tempVals = np.array([1,10,100,500,1000,5000])
+    # photon frequency values in keV
+    nuVals = np.array([1,10,100,500,1000,5000])
+
+    tempVals = tempVals * 1e3 * utils.constants['eV'] / (utils.constants['me'] * utils.constants['c']**2)
+    nuVals = nuVals * 1e3 * utils.constants['eV'] / (utils.constants['me'] * utils.constants['c']**2)
+    params={}
+    params["photon_energy"] = nuVals
+    params["thetae"] = tempVals
+    hotcross_fit = generate_sigma_hot_fit(thermal_dist,params,ne=1)
+    print(hotcross_fit((nuVals[0]+np.diff(nuVals)[0]/2,tempVals[0])))
 
 if __name__ == "__main__":
-    test_sigma_hotcross()
+    test_sigma_hotcross_interp()
