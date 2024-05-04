@@ -12,6 +12,10 @@ class Domain:
     def __init__(self,num_superphotons):
         self.num_superphotons=num_superphotons
 
+    def record_criterion(self):
+        pass
+
+
 
 class OnezoneScattering(Domain):
     """
@@ -31,10 +35,19 @@ class OnezoneScattering(Domain):
         self.superphotons = np.array([sp.Superphoton() for _ in range(self.num_superphotons)])
         # geometry of problem (currently not used as geodesics handles flatspace)
         self.geom = geometry.MinkowskiSpherical()
+        # frequency bins for scattering, log is base 10
+        self.dlE = 0.25
+        self.lE0 = 6
+        self.lE1 = 20
+        self.freq_bins = np.arange(self.lE0,self.lE1+self.dlE,self.dlE)
+        self.n_th_bins = 1
+        self.n_scattering_bins = 4
+        self.spectra = np.zeros(shape=(4,self.n_th_bins,len(self.freq_bins)))
         
     def init_superphotons(self,nuMin,nuMax):
         for superphoton in self.superphotons:
             superphoton.x = [0,1e-5,np.pi/2,0]
+            superphoton.x_init = [0,1e-5,np.pi/2,0]
             superphoton.nu = self.sample_frequency(nuMin,nuMax)
             # igrmonty sets units of k^0 in electron rest mass units
             superphoton.energy = constants["h"] * superphoton.nu / (constants['me'] * constants['c']**2)
@@ -45,11 +58,12 @@ class OnezoneScattering(Domain):
             costh = sampling.sample_1d(-1,1)
             sinth = np.sqrt(1-costh**2)
             cosphi = sampling.sample_1d(-1,1)
-            sinphi = np.sqrt(1-sinphi**2)
+            sinphi = np.sqrt(1-cosphi**2)
             superphoton.k = [superphoton.energy,costh,sinth*cosphi,sinth*sinphi]
+            superphoton.k_init = [superphoton.energy,costh,sinth*cosphi,sinth*sinphi]
             # stefanBoltzmann = 5.67e-5 / np.pi * (self.thetae * constants['me'] * constants['c']**2) / constants['kb']
             # superphoton.weight = self.bnu(superphoton.nu)/self.bnumax() * self.num_superphotons / stefanBoltzmann
-            superphoton.weight = self.bnu(superphoton.nu)/self.bnumax() * 1e10
+            superphoton.weight = self.bnu(superphoton.nu)/self.bnumax() * 1e6
 
     def bnu(self,nu):
         """Planck function"""
@@ -62,3 +76,29 @@ class OnezoneScattering(Domain):
 
     def sample_frequency(self,nuMin,nuMax):
         return np.exp(sampling.sample_1d()*np.log(nuMax/nuMin) + np.log(nuMin))
+
+    def record_criterion(self,superphoton : sp.Superphoton):
+        if(superphoton.x[1] > self.radius):
+            return True
+        else:
+            return False
+
+    def record_superphoton(self,superphoton: sp.Superphoton):
+        """
+        record superphoton in the detector
+        """
+        lE = np.log10(superphoton.energy)
+        freq_bin_ind = np.argmin(np.abs(self.freq_bins - lE))
+        self.spectra[0,0,freq_bin_ind] += superphoton.weight * superphoton.energy
+
+    def get_nuLnu(self):
+        """
+        dimensionalize spectra to get nuLnu
+        """
+        if(self.spectra.shape[1] == 1):
+            dOmega = 4 * np.pi
+        else:
+            dOmega = "set dOmega"
+        nuLnu = constants['me']*constants['c']**2 * (4 * np.pi / dOmega) * 1/self.dlE
+        nuLnu *= self.spectra[0,0]
+        return nuLnu
