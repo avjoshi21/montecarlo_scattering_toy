@@ -41,7 +41,7 @@ def compute_hotcross(dist_func,photon_energy,**kwargs):
     # call function to return asymptotic values of cross section based on photon, electron energies
     sigma = dist_func.check_scattering_limits(photon_energy,**kwargs)
     if (sigma != -1):
-        print("low limits")
+        # print("low limits")
         return sigma
     # get klein nishina cross section based on energy of photon in electron rest frame (function of mu, gammae)
     sigma_invariant = lambda photon_energy,gammae,mu: sigma_kn(photon_energy * gammae * (1 - mu * beta(gammae)))
@@ -113,6 +113,17 @@ def generate_sigma_hot_fit(dist_func: edf.DistFunc,table_params,**kwargs):
     
     sigma_hot_interp = interpolate.RegularGridInterpolator(param_vals,sigma_hot_vals,method='linear')
     return sigma_hot_interp
+
+def hotcross_lookup(dist_func: edf.DistFunc,sigma_hot_fit,params,**kwargs):
+    """
+    Given a fitting function has been generated, provide a lookup by first checking if 
+    the parameters for the hotcross are within interpolation bounds
+    """
+    sigma = dist_func.check_scattering_limits(params[0],**kwargs)
+    if (sigma != -1):
+        return sigma
+    else:
+        return sigma_hot_fit(params)
 
 def test_sigma_hotcross():
     """test sigma hotcross computation comparing values to Wienke 1985
