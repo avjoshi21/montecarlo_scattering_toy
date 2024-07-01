@@ -2,6 +2,8 @@
 from scipy import integrate
 from scipy import interpolate
 import numpy as np
+import pickle
+
 import utils
 import electron_distributions as edf
 
@@ -103,16 +105,31 @@ def generate_sigma_hot_fit(dist_func: edf.DistFunc,table_params,**kwargs):
         param_vals.append(val)
     if("photon_energy" not in param_keys):
         print("'photon energy' necessary parameter for computing cross sections!");exit();
-    table_params_meshgrid = np.array(np.meshgrid(*param_vals))
+    table_params_meshgrid = np.array(np.meshgrid(*param_vals,indexing='ij'))
     sigma_hot_vals = np.zeros(shape=table_params_meshgrid[0].shape)
     for i,_ in enumerate(sigma_hot_vals.flat):
         for j,param in enumerate(param_keys):
             kwargs[param]  = table_params_meshgrid[j].flat[i]
         
         sigma_hot_vals[np.unravel_index(i,sigma_hot_vals.shape)] = compute_hotcross(dist_func=dist_func,**kwargs)
+        # sigma_hot_vals[np.unravel_index(i,sigma_hot_vals.shape)] = 1.0
     
-    sigma_hot_interp = interpolate.RegularGridInterpolator(param_vals,sigma_hot_vals,method='linear')
+    # print([np.array(i).shape for i in param_vals],sigma_hot_vals.shape)
+    sigma_hot_interp = interpolate.RegularGridInterpolator(tuple(param_vals),sigma_hot_vals,method='linear')
     return sigma_hot_interp
+
+def save_sigma_hotcross_interp(dist_func: edf.DistFunc, picklefile="sigma_hotcross_interp.p",**kwargs):
+    """
+    Saves sigma_hotcross as a pickle file for values similar to that given in grmonty
+    Since the parameters are dependent on the distribution function, perhaps this should be located there
+    """
+    photon_energy_array = np.logspace(-12,15,220,base=10)
+    temp_array = np.logspace(-4,4,80)
+    table_params={"photon_energy":photon_energy_array,"thetae":temp_array}
+    sigma_hot_interp = generate_sigma_hot_fit(dist_func=dist_func,table_params=table_params,**kwargs)
+    with open(picklefile,"wb") as fp:
+        pickle.dump(sigma_hot_interp,fp)
+    return
 
 def hotcross_lookup(dist_func: edf.DistFunc,sigma_hot_fit,params,**kwargs):
     """
