@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pickle
 import scipy.stats as stats
+import copy
+import h5py
 
 import domain
 import hotcross
@@ -59,7 +61,7 @@ def test_geodesic_paths(**domain_kwargs):
     one_zone_domain.init_superphotons()
     flatspace_geodesic = geodesics.FlatspaceSphericalGeodesics()
     # dl = domain_kwargs['radius']*2
-    alpha_scattering = domain_kwargs["zone_tau"]/one_zone_domain.radius
+    alpha_scattering = one_zone_domain.tau/one_zone_domain.radius
     dl = scattering.compute_scattering_distance(alpha_scattering=alpha_scattering,bias=1)
     for ii,_ in enumerate(one_zone_domain.superphotons):
         one_zone_domain.superphotons[ii].evolve_photon_noscattering(flatspace_geodesic,dl=dl)
@@ -190,3 +192,66 @@ def test_photon_beam_scattering_convergence(**domain_kwargs):
     plt.savefig("tests/plots/scattering_thomson_convergence.png")
     
 
+def test_spectra_pozdynakov(**domain_kwargs):
+    domain_kwargs["num_superphotons"] = int(10)
+    domain_kwargs["zone_tau"]=0.1
+    domain_kwargs["bias_init"] = 1
+
+    thermal_dist = edf.ThermalDistribution()
+    domain_kwargs["dist_func"] = thermal_dist
+    kwargs = domain_kwargs
+    kwargs["gamma_min"] = 1
+    kwargs["gamma_max"] = utils.bounds["gammae_max"](kwargs["thetae"])
+
+    one_zone_domain = domain.OnezoneScattering(**kwargs)
+    kwargs["ne"]=one_zone_domain.ne
+    one_zone_domain.init_superphotons()
+    flatspace_geodesic = geodesics.FlatspaceSphericalGeodesics()
+
+    # dl = domain_kwargs['radius']*0.7
+    kwargs["alpha_scattering"] = one_zone_domain.tau/one_zone_domain.radius
+    print("num_superphotons_init, num_superphotons",(one_zone_domain.num_superphotons_init,one_zone_domain.num_superphotons))
+    print(len(one_zone_domain.superphotons))
+    for ii in range(len(one_zone_domain.superphotons)):
+        state=one_zone_domain.superphotons[ii].evolve_photon(flatspace_geodesic,**kwargs)
+        # one_zone_domain.superphotons[ii].x,one_zone_domain.superphotons[ii].k = flatspace_geodesic.evolve_geodesic(superphoton.x_init,superphoton.k_init,dl)
+        # if one_zone_domain.record_criterion(one_zone_domain.superphotons[ii]):
+        #     one_zone_domain.record_superphoton(one_zone_domain.superphotons[ii])
+    
+    # iterate through and remove all the absorbed superphotons
+    # for ii,superphoton in enumerate(copy.copy(one_zone_domain.superphotons)):
+    #     if superphoton.state_flag == 1:
+    #         one_zone_domain.superphotons.remove(superphoton)
+
+    # with open("tests/test_spectra_pozdynakov_superphoton.pkl","wb") as fp:
+    #     pickle.dump(one_zone_domain.superphotons,fp)
+    # io_utils.write_superphoton_data("tests/test_spectra_pozdynakov.txt",prob_domain=one_zone_domain,fileflag="w")
+    print("num_scattered",one_zone_domain.num_scattered)
+    print("num_superphotons_init, num_superphotons",(one_zone_domain.num_superphotons_init,one_zone_domain.num_superphotons))
+    nuLnu = one_zone_domain.get_nuLnu()[:,0,:]
+    # print(nuLnu);
+    # print(nuLnu[1:]);exit()
+    for scattering_index in range(4):
+        # print(([i.weight for i in one_zone_domain.superphotons if i.times_scattered==scattering_index]))
+        # plt.hist([np.log10(i.weight* i.energy * utils.constants["me"] * utils.constants["c"]**2 ) for i in one_zone_domain.superphotons if i.times_scattered==scattering_index],alpha=0.6,bins=6,label=f"{scattering_index}",density=True)
+        output=nuLnu[scattering_index]/np.exp(one_zone_domain.freq_bins)
+        plt.plot(np.log10(np.exp(one_zone_domain.freq_bins)),np.log10(output),label=f"{scattering_index}")
+    
+    # hfp = h5py.File("/home/avjoshi2/igrmonty/spectrum.h5",'r')
+    # nu = np.power(10.,hfp["output"]["lnu"]) * constants["me"] * constants["c"]**2 / constants["h"]
+    # nuLnu_grmonty = np.array(hfp["output"]["nuLnu"]) * constants["Lsun"]
+    # nuLnu_grmonty = nuLnu_grmonty[:,:,-1]
+    # hfp.close()
+    # plt.step(np.log10(nu), np.log10(nuLnu_grmonty[0,:]), label="grmonty")
+    plt.plot()
+    plt.legend()
+    # # print(one_zone_domain.freq_bins)
+    # plt.ylim([np.max(np.log10(nuLnu[0]))-10,np.max(np.log10(nuLnu[0]))])
+    # plt.ylim([np.log10(np.max(output))-5,np.log10(np.max(output)*1.1)])
+    plt.xlabel(r"$\log \nu$ (Hz)")
+    # plt.ylabel(r"$\log \nu L_\nu$")
+    plt.ylabel(r"$\log F_\nu$")
+
+    plt.tight_layout()
+    plt.savefig("tests/plots/pozdynakov_test.png")
+    

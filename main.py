@@ -1,6 +1,7 @@
 # main script for running test scattering problem
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 import domain
 import hotcross
@@ -30,14 +31,15 @@ def main():
     """
     domain_kwargs = {
         "num_superphotons":int(1e5),
-        "thetae":1,
+        "thetae":4,
         "thetabb":1e-8,
-        'ne':10**6,
-        # 'radius': 1,
-        'radius': 1 * constants['G'] * constants["M0"] / constants['c']**2,
-        'ln_nu0':np.log(1e8),
-        'ln_nu1':np.log(1e14),
-        'zone_tau':1
+        # 'ne':10**6,
+        # 'radius': 100,
+        'radius': 100 * constants['G'] * constants["M0"] / constants['c']**2,
+        'ln_nu0':np.log(1e-12*constants['me']*constants['c']**2/constants['h']),
+        # 'ln_nu0':np.log(1e8),
+        'ln_nu1':np.log(1e24),
+        'zone_tau':0.1
     }
     # test_superphoton_evolution()
     # test_spectra_blackbody(**domain_kwargs)
@@ -45,8 +47,11 @@ def main():
     # save_sigma_hotcross(**domain_kwargs)
     # test_alpha_scattering(**domain_kwargs)
     # test_photon_beam_scattering(**domain_kwargs)
-    test_photon_beam_scattering_convergence(**domain_kwargs)
-
+    # test_photon_beam_scattering_convergence(**domain_kwargs)
+    tstart = time.time()
+    test_spectra_pozdynakov(**domain_kwargs)
+    tend = time.time()
+    print(f"function took {(tend-tstart):.0f} seconds")
 
 if __name__ == "__main__":
     main()

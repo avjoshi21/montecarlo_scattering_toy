@@ -29,16 +29,18 @@ def compute_tau_scattering(sigma_hotcross_func,dl=1, ne=1,**kwargs):
     """
     return dl* compute_alpha_scattering(sigma_hotcross_func=sigma_hotcross_func,ne=ne,**kwargs)
 
-def compute_scattering_distance(alpha_scattering,**kwargs):
+def compute_scattering_distance(alpha_scattering,bias,**kwargs):
     """
     Given the absorption coefficient,
     randomly sample between 0 and 1 (call it p). This gives the probability for
     a superphoton to scatter p = 1 - exp(-bias * tau_s)
-    dl = -log(1-p)/bias/alpha_scattering
+    then dl = tau_s/alpha_scattering = -log(1-p)/bias/alpha_scattering
+    alternatively approximate p \approx tau_s => dl = p / alpha_scattering
     """
     rand_num = sampling.sample_1d()
     # alpha_scattering = compute_alpha_scattering(sigma_hotcross_func,ne=ne,**kwargs)
-    return -np.log(1-rand_num)/kwargs["bias"]/alpha_scattering
+    return -np.log(1-rand_num)/bias/alpha_scattering
+    # return rand_num/(alpha_scattering)
 
 def sample_e_momentum(dist_func: electron_distributions.DistFunc,kcona,**kwargs):
     """
