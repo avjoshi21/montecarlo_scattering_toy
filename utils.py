@@ -20,6 +20,8 @@ bounds = {}
 bounds['thetae_min'] = 1e-4
 bounds['photon_energy_min'] = 1e-12
 bounds['gammae_max'] = lambda thetae: 1 + 12*thetae
+# p_max is defined such that it roughly matches gammae bounds for the hotcross
+bounds['p_max'] = lambda thetae: np.sqrt((1+12*thetae)**2 - 1)
 # bounds['gammae_max'] = 12
 bounds['weight_min']=1e8;
 

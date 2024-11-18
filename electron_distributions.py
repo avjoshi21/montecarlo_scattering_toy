@@ -110,7 +110,7 @@ class ThermalDistribution(DistFunc):
         else:
             return -1
 
-        # # numpy way
+        # # numpy way (not working well)
         # condition_numpy = np.where(kwargs['thetae'] < utils.bounds['thetae_min'] and photon_energy < utils.bounds['photon_energy_min'],utils.constants['sigma_thomson'],\
         #     np.where(kwargs['thetae'] < utils.bounds['thetae_min'] and photon_energy >= utils.bounds['photon_energy_min'],sigma_kn(photon_energy),-1))
         # return condition_numpy
@@ -150,6 +150,12 @@ class AnisotropicThermalDistribution(ThermalDistribution):
         ThermalDistribution.__init__(self)
         return   
 
+    def norm(self):
+        """
+        dne_d3p already has the normalization factor
+        """
+        return 1
+
     def sample_aniso_momentum(self,A,**kwargs):
         """ 
         Sample the momentum of an electron. Since it's anisotropic, need to give both energy and direction.
@@ -180,7 +186,12 @@ class AnisotropicThermalDistribution(ThermalDistribution):
         theta_shifted=np.arctan2(abs(sinth),costh/np.sqrt(A))
         return [ln_gamma_shifted,theta_shifted,phi]
 
-    def dnd3p(self,A,p,theta,ne,thetae_perp,**kwargs):
+    def check_scattering_limits(self, photon_energy, **kwargs):
+        return super().check_scattering_limits(photon_energy, **kwargs)
+
+
+
+    def dnd3p(self,A,p,theta,ne,thetae_perp,p_par=None,p_perp=None,**kwargs):
         """
         Compute normalized anisotropic distribution function value for a given electron momentum, anisotropy value and perpendicular temperature.
 
@@ -193,11 +204,15 @@ class AnisotropicThermalDistribution(ThermalDistribution):
         Returns:
             dne_d3p - the normalized distribution function (dne/d^3p), see Treumann et al. 2016
         """
-        # kwargs['thetae'] = thetae_perp
-        psq=p**2
-        psq_perp = psq * np.sin(theta)**2
-        psq_par  = psq * np.cos(theta)**2
-
+        # overload function to accept either p,theta or p_par, p_perp
+        if(type(p_par)==np.ndarray and (p_par==None).any() and (p_perp==None).any() and (theta!=None).all()):
+            # kwargs['thetae'] = thetae_perp
+            psq=p**2
+            psq_perp = psq * np.sin(theta)**2
+            psq_par  = psq * np.cos(theta)**2
+        else:
+            psq_perp = p_perp**2
+            psq_par = p_par**2
         prefactor = ne * np.sqrt(A) / thetae_perp / (4 * np.pi * special.kn(2,1/thetae_perp))
         # prefactor = ne * np.sqrt(A) / thetae_perp / (4 * np.pi * (utils.constants['me'] * utils.constants['c'])**3 * special.kn(2,1/thetae_perp))
         # return prefactor
@@ -270,8 +285,8 @@ class AnisotropicThermalDistribution(ThermalDistribution):
         # divide by n for probability of bin
         hist_vals/=nsamples
 
-        # pdf = lambda x,y: self.dnd2p(A,np.sqrt(x**2+y**2),np.arctan2(x,y),thetae_perp=thetae,**kwargs)
-        pdf = lambda x,y: 2*np.pi*x*self.dnd3p(A,np.sqrt(x**2+y**2),np.arctan2(abs(x),y),thetae_perp=thetae,**kwargs)
+        pdf = lambda x,y: self.dnd2p(A,np.sqrt(x**2+y**2),np.arctan2(x,y),thetae_perp=thetae,**kwargs)
+        # pdf = lambda x,y: 2*np.pi*x*self.dnd3p(A,np.sqrt(x**2+y**2),np.arctan2(abs(x),y),thetae_perp=thetae,**kwargs)
         analytic_prob_mass = np.zeros(hist_vals.shape)
         x_mesh = np.zeros(hist_vals.shape)
         y_mesh = np.zeros(hist_vals.shape)
@@ -329,6 +344,7 @@ class AnisotropicThermalDistribution(ThermalDistribution):
             nsamples_array = np.logspace(3,7,10)
             errors=[]
             for i,nsamples in enumerate(nsamples_array):
+                # I do not know why multiprocessing can only run 5 sets of parallel samplings, but it's not worth debugging
                 if(i<len(nsamples_array)-4):
                     parallel=False
                 else:
