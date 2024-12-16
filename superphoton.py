@@ -125,7 +125,7 @@ class Superphoton:
             # self.dom.superphotons.append(scattered_superphoton)
             self.dom.num_superphotons+=1
             self.dom.num_scattered+=1
-        print(scattered_superphoton.weight)
+        # print(scattered_superphoton.weight)
         return scattered_superphoton
 
     def delete_superphoton(self):

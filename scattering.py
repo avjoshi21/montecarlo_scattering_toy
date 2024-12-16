@@ -66,7 +66,7 @@ def sample_e_momentum(dist_func: electron_distributions.DistFunc,kcona,**kwargs)
 
         # sample direction this is chosen to be wrt to e^mu_(1) which is the B aligned vector (?)
         # better to move this and the gamma sampling to a separate function
-        mu = np.cos(sample_e_mu(betae,**kwargs))
+        mu = (sample_e_mu(betae,**kwargs))
 
         photon_energy_eframe = gammae * (1 - betae * mu) * kcona[0]
         sigma_kn = hotcross.sigma_kn(photon_energy_eframe)

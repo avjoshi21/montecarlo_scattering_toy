@@ -6,6 +6,7 @@ import pickle
 import time
 import matplotlib.pyplot as plt
 import sys,os,glob
+import itertools as it
 
 import utils
 import electron_distributions as edf
@@ -264,40 +265,72 @@ def test_hotcross_anisotropic_vs_A(check_file_first=True,toplot=False):
     if not(check_file_first and os.path.isfile(filename)):
         aniso_dist = edf.AnisotropicThermalDistribution()
         xi=np.pi/4
-        eps=1e-2
-        thetae=1
+        eps=10
+        xi_vals = [0,np.pi/4,np.pi/2]
+        thetae_perp_vals = np.logspace(0,2,5)
+        thetae_par_vals = np.logspace(0,2,5)
         ne=1
         A_vals = np.logspace(-3,3,7)
         hotcross_vals = []
         if os.path.isfile(filename):
             old_data = np.loadtxt(filename)
         with open(filename,'a') as fp:
-            for A in A_vals:
+            # for A in A_vals:
+            for thetae_perp,thetae_par,xi in it.product(thetae_perp_vals,thetae_par_vals,xi_vals):
+                A = thetae_perp/thetae_par
                 row_exists=False
                 for i in old_data[:]:
-                    row_exists= row_exists or np.isclose([A,xi,eps,thetae],i[:-1],rtol=1e-4).all()
+                    row_exists= row_exists or np.isclose([A,xi,eps,thetae_perp],i[:-1],rtol=1e-4).all()
                 if(not row_exists):
-                    val = (compute_hotcross_anisotropic(aniso_dist,eps,A,xi,ne=ne,thetae_perp=thetae)[0])
-                    print(f"{A} {xi} {eps} {thetae} {val}")
+                    val = (compute_hotcross_anisotropic(aniso_dist,eps,A,xi,ne=ne,thetae_perp=thetae_perp)[0])
+                    print(f"{A} {xi} {eps} {thetae_perp} {val}")
                     hotcross_vals.append(val)
-                    fp.write(f"{A} {xi} {eps:.4e} {thetae} {val}\n")
+                    fp.write(f"{A} {xi} {eps:.4e} {thetae_perp} {val}\n")
         
     if toplot:
-        fig,ax = plt.subplots()
+        fig,axs = plt.subplots(1,3,figsize=(15,5))
         hotcross_data = np.loadtxt(filename)
-        # make line plot vs A
-        for xi in [0,np.pi/4,np.pi/2]:
-            A_vals = hotcross_data[hotcross_data[:,1]==xi,0]
-            hotcross_vals = hotcross_data[hotcross_data[:,1]==xi,-1]
-            plt.plot(np.log10(A_vals),hotcross_vals,label=fr"$\xi={xi:.2f}$")
-            ax.set_xlabel(r'$\log \left(A \equiv T_{\perp}/T_{\parallel}\right)$')
-            ax.set_ylabel(r'$\sigma_\mathrm{hot}$')
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig("tests/plots/test_hotcross_anisotropic_A.png",dpi=200)
+        # make heatmaps
+        eps = 10
+        xi_vals = [0,np.pi/4,np.pi/2]
+        thetae_perp_vals = np.logspace(0,2,5)
+        thetae_par_vals = np.logspace(0,2,5)
+        # for xi in [0,np.pi/4,np.pi/2]:
+        filedata = np.loadtxt("tests/test_hotcross_anisotropic_vs_A.txt")
+        for axInd,xi in enumerate(xi_vals):
+            data = np.zeros((thetae_par_vals.shape[0],thetae_perp_vals.shape[0]))
+            # for thetae_par,thetae_perp in it.product(thetae_par_vals,thetae_perp_vals):
+            for i in range(thetae_par_vals.shape[0]):
+                for j in range(thetae_perp_vals.shape[0]):
+                    thetae_par = thetae_par_vals[i]
+                    thetae_perp = thetae_perp_vals[j]
+                    A = thetae_perp/thetae_par
+                    # print(filedata.shape);exit()
+                    for k in range(filedata.shape[0]):
+                        if np.isclose([A,xi,eps,thetae_perp],filedata[k][:-1],rtol=1e-4).all():
+                            break
+                    data[i,j]=filedata[k][-1]
+            axs[axInd].set_xlabel(r"$\log \Theta_{e,\perp}$")
+            # axs[axInd].set_xticks(np.log10(thetae_perp_vals))
+            axs[axInd].set_ylabel(r"$\log \Theta_{e,\parallel}$")
+            # axs[axInd].set_yticks(np.log10(thetae_perp_vals))
+            axs[axInd].set_title(rf"Pitch angle $\xi={xi:.2f}$")
+            im = axs[axInd].pcolormesh(np.log10(thetae_par_vals),np.log10(thetae_perp_vals),data,vmin=np.min(data),vmax=np.max(data))
+            
+        plt.colorbar(im)
+        plt.tight_layout()
+        plt.savefig("tests/plots/test_hotcross_anisotropic_heatmap_2.png")
+            # A_vals = hotcross_data[hotcross_data[:,1]==xi,0]
+            # hotcross_vals = hotcross_data[hotcross_data[:,1]==xi,-1]
+            # plt.plot(np.log10(A_vals),hotcross_vals,label=fr"$\xi={xi:.2f}$")
+            # ax.set_xlabel(r'$\log \left(A \equiv T_{\perp}/T_{\parallel}\right)$')
+            # ax.set_ylabel(r'$\sigma_\mathrm{hot}$')
+            # plt.legend()
+            # plt.tight_layout()
+            # plt.savefig("tests/plots/test_hotcross_anisotropic_A.png",dpi=200)
 
 
 if __name__ == "__main__":
-    test_hotcross_anisotropic_vs_A(check_file_first=False,toplot=True)
+    test_hotcross_anisotropic_vs_A(check_file_first=True,toplot=True)
     # test_compare_hotcross_isotropic_anisotropic()
     # test_sigma_hotcross()

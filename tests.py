@@ -5,6 +5,8 @@ import pickle
 import scipy.stats as stats
 import copy
 import h5py
+import sys,os,glob
+from utils import time_function
 
 import domain
 import hotcross
@@ -191,10 +193,12 @@ def test_photon_beam_scattering_convergence(**domain_kwargs):
     plt.tight_layout()
     plt.savefig("tests/plots/scattering_thomson_convergence.png")
     
-
-def test_spectra_pozdynakov(**domain_kwargs):
-    domain_kwargs["num_superphotons"] = int(10)
-    domain_kwargs["zone_tau"]=0.1
+@time_function
+def test_spectra_pozdnyakov(file_check=None,**domain_kwargs):
+    if(file_check is None):
+        file_check=""
+    domain_kwargs["num_superphotons"] = int(1e4)
+    domain_kwargs["zone_tau"]=1e-8
     domain_kwargs["bias_init"] = 1
 
     thermal_dist = edf.ThermalDistribution()
@@ -208,41 +212,55 @@ def test_spectra_pozdynakov(**domain_kwargs):
     one_zone_domain.init_superphotons()
     flatspace_geodesic = geodesics.FlatspaceSphericalGeodesics()
 
-    # dl = domain_kwargs['radius']*0.7
-    kwargs["alpha_scattering"] = one_zone_domain.tau/one_zone_domain.radius
-    print("num_superphotons_init, num_superphotons",(one_zone_domain.num_superphotons_init,one_zone_domain.num_superphotons))
-    print(len(one_zone_domain.superphotons))
-    for ii in range(len(one_zone_domain.superphotons)):
-        state=one_zone_domain.superphotons[ii].evolve_photon(flatspace_geodesic,**kwargs)
-        # one_zone_domain.superphotons[ii].x,one_zone_domain.superphotons[ii].k = flatspace_geodesic.evolve_geodesic(superphoton.x_init,superphoton.k_init,dl)
-        # if one_zone_domain.record_criterion(one_zone_domain.superphotons[ii]):
-        #     one_zone_domain.record_superphoton(one_zone_domain.superphotons[ii])
-    
-    # iterate through and remove all the absorbed superphotons
-    # for ii,superphoton in enumerate(copy.copy(one_zone_domain.superphotons)):
-    #     if superphoton.state_flag == 1:
-    #         one_zone_domain.superphotons.remove(superphoton)
+    if(not os.path.isfile(file_check)):
+        # dl = domain_kwargs['radius']*0.7
+        kwargs["alpha_scattering"] = one_zone_domain.tau/one_zone_domain.radius
+        print("num_superphotons_init, num_superphotons",(one_zone_domain.num_superphotons_init,one_zone_domain.num_superphotons))
+        print(len(one_zone_domain.superphotons))
+        for ii in range(len(one_zone_domain.superphotons)):
+            state=one_zone_domain.superphotons[ii].evolve_photon(flatspace_geodesic,**kwargs)
+            # one_zone_domain.superphotons[ii].x,one_zone_domain.superphotons[ii].k = flatspace_geodesic.evolve_geodesic(superphoton.x_init,superphoton.k_init,dl)
+            # if one_zone_domain.record_criterion(one_zone_domain.superphotons[ii]):
+            #     one_zone_domain.record_superphoton(one_zone_domain.superphotons[ii])
+        
+        # iterate through and remove all the absorbed superphotons
+        # for ii,superphoton in enumerate(copy.copy(one_zone_domain.superphotons)):
+        #     if superphoton.state_flag == 1:
+        #         one_zone_domain.superphotons.remove(superphoton)
 
-    # with open("tests/test_spectra_pozdynakov_superphoton.pkl","wb") as fp:
-    #     pickle.dump(one_zone_domain.superphotons,fp)
-    # io_utils.write_superphoton_data("tests/test_spectra_pozdynakov.txt",prob_domain=one_zone_domain,fileflag="w")
-    print("num_scattered",one_zone_domain.num_scattered)
-    print("num_superphotons_init, num_superphotons",(one_zone_domain.num_superphotons_init,one_zone_domain.num_superphotons))
-    nuLnu = one_zone_domain.get_nuLnu()[:,0,:]
+        # with open("tests/test_spectra_pozdnyakov_superphoton.pkl","wb") as fp:
+        #     pickle.dump(one_zone_domain.superphotons,fp)
+        # io_utils.write_superphoton_data("tests/test_spectra_pozdnyakov.txt",prob_domain=one_zone_domain,fileflag="w")
+        print("num_scattered",one_zone_domain.num_scattered)
+        print("num_superphotons_init, num_superphotons",(one_zone_domain.num_superphotons_init,one_zone_domain.num_superphotons))
+        nuLnu = one_zone_domain.get_nuLnu()[:,0,:]
+        ln_nu = one_zone_domain.freq_bins
+        nu = np.exp(ln_nu)
+        # ln_nu_reshape = ln_nu.reshape((1,ln_nu.shape[0]))
+        np.savetxt("tests/test_spectra_pozdnyakov_nuLnu.txt",np.vstack((ln_nu,nuLnu)))
+
+    else:
+        ln_nu,nuLnu = np.loadtxt("tests/test_spectra_pozdnyakov_nuLnu.txt",unpack=True)
+        nu = np.exp(ln_nu)
     # print(nuLnu);
     # print(nuLnu[1:]);exit()
-    for scattering_index in range(4):
+    for scattering_index in range(1):
         # print(([i.weight for i in one_zone_domain.superphotons if i.times_scattered==scattering_index]))
         # plt.hist([np.log10(i.weight* i.energy * utils.constants["me"] * utils.constants["c"]**2 ) for i in one_zone_domain.superphotons if i.times_scattered==scattering_index],alpha=0.6,bins=6,label=f"{scattering_index}",density=True)
-        output=nuLnu[scattering_index]/np.exp(one_zone_domain.freq_bins)
-        plt.plot(np.log10(np.exp(one_zone_domain.freq_bins)),np.log10(output),label=f"{scattering_index}")
-    
-    # hfp = h5py.File("/home/avjoshi2/igrmonty/spectrum.h5",'r')
-    # nu = np.power(10.,hfp["output"]["lnu"]) * constants["me"] * constants["c"]**2 / constants["h"]
-    # nuLnu_grmonty = np.array(hfp["output"]["nuLnu"]) * constants["Lsun"]
-    # nuLnu_grmonty = nuLnu_grmonty[:,:,-1]
-    # hfp.close()
-    # plt.step(np.log10(nu), np.log10(nuLnu_grmonty[0,:]), label="grmonty")
+        output=nuLnu[scattering_index]/nu
+        plt.step(np.log10(nu),np.log10(output),label=f"{scattering_index}")
+    output=np.sum(nuLnu,axis=0)/nu
+    # print(nu)
+    nu_old=nu
+    plt.step(np.log10(nu),np.log10(output),label=f"Test code")
+
+    hfp = h5py.File("/home/avjoshi2/igrmonty/spectrum.h5",'r')
+    nu = np.power(10.,hfp["output"]["lnu"]) * constants["me"] * constants["c"]**2 / constants["h"]
+    nuLnu_grmonty = np.array(hfp["output"]["nuLnu"]) * constants["Lsun"]
+    nuLnu_grmonty = np.sum(nuLnu_grmonty[:,:,-1],axis=0)
+    nuLnu_grmonty *= np.max(nuLnu)/np.max(nuLnu_grmonty)
+    hfp.close()
+    # plt.step(np.log10(nu), np.log10(nuLnu_grmonty/nu), label="grmonty")
     plt.plot()
     plt.legend()
     # # print(one_zone_domain.freq_bins)
@@ -253,5 +271,63 @@ def test_spectra_pozdynakov(**domain_kwargs):
     plt.ylabel(r"$\log F_\nu$")
 
     plt.tight_layout()
-    plt.savefig("tests/plots/pozdynakov_test.png")
+    plt.savefig("tests/plots/pozdnyakov_spectra_grmonty_comparison.png")
     
+def compute_L1_norm_convergence(file_check=None,**domain_kwargs):
+    if(file_check is None):
+        file_check=""
+    domain_kwargs["zone_tau"]=1e-8
+    domain_kwargs["bias_init"] = 1
+
+    thermal_dist = edf.ThermalDistribution()
+    domain_kwargs["dist_func"] = thermal_dist
+    kwargs = domain_kwargs
+    kwargs["gamma_min"] = 1
+    kwargs["gamma_max"] = utils.bounds["gammae_max"](kwargs["thetae"])
+
+    one_zone_domain = domain.OnezoneScattering(**kwargs)
+    kwargs["ne"]=one_zone_domain.ne
+    one_zone_domain.init_superphotons()
+    flatspace_geodesic = geodesics.FlatspaceSphericalGeodesics()
+
+    N_values = np.logspace(3, 6, num=10, base=10, dtype=int)
+    L1_norms = []
+
+    for N in N_values:
+        domain_kwargs["num_superphotons"] = N
+        one_zone_domain = domain.OnezoneScattering(**domain_kwargs)
+        one_zone_domain.init_superphotons()
+        flatspace_geodesic = geodesics.FlatspaceSphericalGeodesics()
+        kwargs = domain_kwargs
+        kwargs["gamma_min"] = 1
+        kwargs["gamma_max"] = utils.bounds["gammae_max"](kwargs["thetae"])
+        kwargs["alpha_scattering"] = one_zone_domain.tau / one_zone_domain.radius
+        if(file_check is None):
+            for ii in range(len(one_zone_domain.superphotons)):
+                one_zone_domain.superphotons[ii].evolve_photon(flatspace_geodesic, **kwargs)
+
+            nuLnu = one_zone_domain.get_nuLnu()[:, 0, :]
+            nu = one_zone_domain.freq_bins
+            output = np.sum(nuLnu, axis=0) / np.exp(nu)
+            np.savetxt("tests/test_pozdnyakov_spectra_nuLnu.txt", np.vstack((nu, nuLnu)))
+        else:
+            nu, nuLnu = np.loadtxt(file_check, unpack=True)
+            output = np.sum(nuLnu, axis=0) / np.exp(nu)
+        
+        hfp = h5py.File("/home/avjoshi2/igrmonty/spectrum.h5", 'r')
+        nu_grmonty = np.power(10., hfp["output"]["lnu"]) * constants["me"] * constants["c"]**2 / constants["h"]
+        nuLnu_grmonty = np.array(hfp["output"]["nuLnu"]) * constants["Lsun"]
+        nuLnu_grmonty = np.sum(nuLnu_grmonty[:, :, -1], axis=0)
+        nuLnu_grmonty *= np.max(nuLnu) / np.max(nuLnu_grmonty)
+        hfp.close()
+
+        L1_norm = np.sum(np.abs(output - nuLnu_grmonty / nu))
+        L1_norms.append(L1_norm)
+
+    plt.figure()
+    plt.loglog(N_values, L1_norms, label="L1 Norm")
+    plt.xlabel(r"$N_\mathrm{superphotons}$")
+    plt.ylabel(r"L1 Norm")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("tests/plots/L1_norm_convergence.png")

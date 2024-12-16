@@ -1,6 +1,7 @@
 """Common utility functions/variables"""
 from functools import wraps
 import numpy as np
+import time
 
 # units are in cgs
 constants={}
@@ -31,6 +32,19 @@ def beta(gamma):
 
 def gamma(beta):
     return np.sqrt(1/(1-beta**2))
+
+def time_function(func):
+    """
+    Decorator for timing a function
+    """
+    def wrapper(*args, **kwargs):
+        tstart = time.time()
+        result = func(*args, **kwargs)
+        tend = time.time()
+        print(f"Function '{func.__name__}' took {(tend - tstart):.0f} seconds")
+        return result
+    return wrapper
+
 
 class operate_along_axis_member_function:
     """

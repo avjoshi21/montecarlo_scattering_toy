@@ -1,4 +1,5 @@
 import numpy as np
+
 import superphoton as sp
 import sampling
 from utils import constants
@@ -55,7 +56,7 @@ class OnezoneScattering(Domain):
         self.ln_nu0 = kwargs["ln_nu0"]
         self.ln_nu1 = self.ln_nu0 + (self.n_bins-1) * self.dlnu
         # self.ln_nu1 = kwargs["ln_nu1"]
-        self.freq_bins = np.linspace(self.ln_nu0,self.ln_nu1,self.n_bins,endpoint=True)
+        self.freq_bins = np.array([self.ln_nu0+i*self.dlnu for i in range(self.n_bins)])
         # self.dlnu = self.dlE = np.mean(np.diff(self.freq_bins))
         # print(self.dlnu);exit();
         # self.freq_bins = np.logspace(self.ln_nu0,self.ln_nu1,n_bins)
