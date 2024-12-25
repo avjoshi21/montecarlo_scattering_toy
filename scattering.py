@@ -170,7 +170,7 @@ def sample_klein_nishina(k0):
     while(1):
         k0p_test = k0pmin + (k0pmax - k0pmin) * sampling.sample_1d()
 
-        x1 = (2 * 1 + 2*k0 + 2 *k0**2)/(k0**2 * (1+2*k0))
+        x1 = 2 * (1 + 2*k0 + 2 *k0**2)/(k0**2 * (1+2*k0))
         x1*=sampling.sample_1d()
         ncount+=1
         if(x1<klein_nishina_differential(k0,k0p_test)):
@@ -231,15 +231,50 @@ def test_sample_thomson_convergence():
     plt.savefig("tests/plots/sampling_thomson_convergence.png")
 
 def test_sample_kn():
+    import hotcross
     k0=0.18614589527035774
+    # k0=1e-5
     nsamples = 1e5
     sampled_values = [sample_klein_nishina(k0) for _ in np.arange(nsamples)]
     plt.hist(sampled_values,bins=100,density=True)
-    xvals = np.linspace(-1,1,1000)
-    # plt.plot(xvals,3/8 * (1+xvals**2))
-    # plt.xlabel(r"$\cos \theta$")
+    xvals = np.linspace(k0/(1 + 2*k0),k0,1000)
+    pdf  = lambda x: 3/8 /hotcross.sigma_kn(x) *klein_nishina_differential(k0,x)
+    # pdf = lambda x:klein_nishina_differential(k0,x)
+    plt.plot(xvals,pdf(xvals),label='analytic KN')
+    plt.xlabel(r"$\epsilon^{prime}$")
+    plt.legend()
     plt.tight_layout()
     plt.savefig("tests/plots/scattering_kleinnishina_sampling.png")
 
+def test_sample_kn_convergence():
+    from scipy import integrate
+    k0 = 0.18614589527035774
+    num_samples_array = np.logspace(2, 6, 100, base=10)
+    errors = []
+    nbins = 100
+    for num_samples in map(int, num_samples_array):
+        sampled_values = [sample_klein_nishina(k0) for _ in range(num_samples)]
+        hist, bin_edges = np.histogram(sampled_values, bins=nbins, density=True)
+        bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+        # print(bin_edges.shape);exit()
+        pdf = lambda x: 3/8 / hotcross.sigma_kn(x) * klein_nishina_differential(k0, x)
+        bin_width = np.diff(bin_edges)
+        # analytic_values = [integrate.quad(pdf, bin_edges[i], bin_edges[i+1])[0]/bin_width for i in range(nbins)]
+        # print(analytic_values/np.diff(bin_edges))
+        analytic_values = pdf(bin_centers)
+        # print(analytic_values);exit()
+        error = np.sum(np.abs(hist - analytic_values) * bin_width)
+        errors.append(error)
+
+    plt.loglog(num_samples_array, errors, label='L1 Error')
+    plt.loglog(num_samples_array, 0.5 * np.max(errors) * num_samples_array[0]**0.5 * num_samples_array**-0.5, label=r'$N^{-1/2}$')
+    plt.xlabel('Number of Samples')
+    plt.ylabel('L1 Error')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("tests/plots/scattering_kleinnishina_sampling_convergence.png")
+
 if __name__ == "__main__":
-    test_sample_thomson_convergence()
+    # test_sample_thomson_convergence()
+    # test_sample_kn()
+    test_sample_kn_convergence()

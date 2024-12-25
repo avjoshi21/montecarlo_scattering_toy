@@ -194,11 +194,11 @@ def test_photon_beam_scattering_convergence(**domain_kwargs):
     plt.savefig("tests/plots/scattering_thomson_convergence.png")
     
 @time_function
-def test_spectra_pozdnyakov(file_check=None,**domain_kwargs):
+def test_spectra_pozdnyakov(file_check=None,grmonty_file="/home/avjoshi2/igrmonty/spectrum.h5",**domain_kwargs):
     if(file_check is None):
         file_check=""
-    domain_kwargs["num_superphotons"] = int(1e4)
-    domain_kwargs["zone_tau"]=1e-8
+    domain_kwargs["num_superphotons"] = int(1e5)
+    domain_kwargs["zone_tau"]=1e-4
     domain_kwargs["bias_init"] = 1
 
     thermal_dist = edf.ThermalDistribution()
@@ -211,7 +211,6 @@ def test_spectra_pozdnyakov(file_check=None,**domain_kwargs):
     kwargs["ne"]=one_zone_domain.ne
     one_zone_domain.init_superphotons()
     flatspace_geodesic = geodesics.FlatspaceSphericalGeodesics()
-
     if(not os.path.isfile(file_check)):
         # dl = domain_kwargs['radius']*0.7
         kwargs["alpha_scattering"] = one_zone_domain.tau/one_zone_domain.radius
@@ -236,31 +235,29 @@ def test_spectra_pozdnyakov(file_check=None,**domain_kwargs):
         nuLnu = one_zone_domain.get_nuLnu()[:,0,:]
         ln_nu = one_zone_domain.freq_bins
         nu = np.exp(ln_nu)
-        # ln_nu_reshape = ln_nu.reshape((1,ln_nu.shape[0]))
         np.savetxt("tests/test_spectra_pozdnyakov_nuLnu.txt",np.vstack((ln_nu,nuLnu)))
 
     else:
-        ln_nu,nuLnu = np.loadtxt("tests/test_spectra_pozdnyakov_nuLnu.txt",unpack=True)
+        spectra_data = np.loadtxt(file_check)
+        ln_nu = spectra_data[0]
+        nuLnu = spectra_data[1:]
         nu = np.exp(ln_nu)
-    # print(nuLnu);
-    # print(nuLnu[1:]);exit()
+
     for scattering_index in range(1):
         # print(([i.weight for i in one_zone_domain.superphotons if i.times_scattered==scattering_index]))
         # plt.hist([np.log10(i.weight* i.energy * utils.constants["me"] * utils.constants["c"]**2 ) for i in one_zone_domain.superphotons if i.times_scattered==scattering_index],alpha=0.6,bins=6,label=f"{scattering_index}",density=True)
         output=nuLnu[scattering_index]/nu
         plt.step(np.log10(nu),np.log10(output),label=f"{scattering_index}")
     output=np.sum(nuLnu,axis=0)/nu
-    # print(nu)
-    nu_old=nu
     plt.step(np.log10(nu),np.log10(output),label=f"Test code")
 
-    hfp = h5py.File("/home/avjoshi2/igrmonty/spectrum.h5",'r')
+    hfp = h5py.File(grmonty_file,'r')
     nu = np.power(10.,hfp["output"]["lnu"]) * constants["me"] * constants["c"]**2 / constants["h"]
     nuLnu_grmonty = np.array(hfp["output"]["nuLnu"]) * constants["Lsun"]
     nuLnu_grmonty = np.sum(nuLnu_grmonty[:,:,-1],axis=0)
     nuLnu_grmonty *= np.max(nuLnu)/np.max(nuLnu_grmonty)
     hfp.close()
-    # plt.step(np.log10(nu), np.log10(nuLnu_grmonty/nu), label="grmonty")
+    plt.step(np.log10(nu), np.log10(nuLnu_grmonty/nu), label="grmonty")
     plt.plot()
     plt.legend()
     # # print(one_zone_domain.freq_bins)
@@ -273,9 +270,7 @@ def test_spectra_pozdnyakov(file_check=None,**domain_kwargs):
     plt.tight_layout()
     plt.savefig("tests/plots/pozdnyakov_spectra_grmonty_comparison.png")
     
-def compute_L1_norm_convergence(file_check=None,**domain_kwargs):
-    if(file_check is None):
-        file_check=""
+def test_spectra_pozdnyakov_convergence(file_check=None,**domain_kwargs):
     domain_kwargs["zone_tau"]=1e-8
     domain_kwargs["bias_init"] = 1
 
@@ -294,34 +289,42 @@ def compute_L1_norm_convergence(file_check=None,**domain_kwargs):
     L1_norms = []
 
     for N in N_values:
-        domain_kwargs["num_superphotons"] = N
-        one_zone_domain = domain.OnezoneScattering(**domain_kwargs)
-        one_zone_domain.init_superphotons()
-        flatspace_geodesic = geodesics.FlatspaceSphericalGeodesics()
-        kwargs = domain_kwargs
-        kwargs["gamma_min"] = 1
-        kwargs["gamma_max"] = utils.bounds["gammae_max"](kwargs["thetae"])
-        kwargs["alpha_scattering"] = one_zone_domain.tau / one_zone_domain.radius
+        print(N)
         if(file_check is None):
+            file_check=""
+        else:
+            file_check = f"tests/test_pozdnyakov_spectra_nuLnu_convergence_N{int(N):08d}.txt"
+        if(not os.path.isfile(file_check)):
+            domain_kwargs["num_superphotons"] = N
+            one_zone_domain = domain.OnezoneScattering(**domain_kwargs)
+            one_zone_domain.init_superphotons()
+            flatspace_geodesic = geodesics.FlatspaceSphericalGeodesics()
+            kwargs = domain_kwargs
+            kwargs["gamma_min"] = 1
+            kwargs["gamma_max"] = utils.bounds["gammae_max"](kwargs["thetae"])
+            kwargs["alpha_scattering"] = one_zone_domain.tau / one_zone_domain.radius
             for ii in range(len(one_zone_domain.superphotons)):
                 one_zone_domain.superphotons[ii].evolve_photon(flatspace_geodesic, **kwargs)
 
             nuLnu = one_zone_domain.get_nuLnu()[:, 0, :]
             nu = one_zone_domain.freq_bins
-            output = np.sum(nuLnu, axis=0) / np.exp(nu)
-            np.savetxt("tests/test_pozdnyakov_spectra_nuLnu.txt", np.vstack((nu, nuLnu)))
+            np.savetxt(f"tests/test_spectra_pozdnyakov_nuLnu_convergence_N{int(N):08d}.txt", np.vstack((nu, nuLnu)))
         else:
-            nu, nuLnu = np.loadtxt(file_check, unpack=True)
-            output = np.sum(nuLnu, axis=0) / np.exp(nu)
+            print(N)
+            spectra_data = np.loadtxt(f"tests/test_spectra_pozdnyakov_nuLnu_convergence_N{int(N):08d}.txt")
+            ln_nu = spectra_data[0]
+            nuLnu = spectra_data[1:]
+            nu = np.exp(ln_nu)
         
-        hfp = h5py.File("/home/avjoshi2/igrmonty/spectrum.h5", 'r')
+        output = np.sum(nuLnu, axis=0) / np.exp(nu)
+        hfp = h5py.File(f"/home/avjoshi2/igrmonty/sphere_convergence/python_comp/spectrum_{N:08d}.h5", 'r')
         nu_grmonty = np.power(10., hfp["output"]["lnu"]) * constants["me"] * constants["c"]**2 / constants["h"]
         nuLnu_grmonty = np.array(hfp["output"]["nuLnu"]) * constants["Lsun"]
-        nuLnu_grmonty = np.sum(nuLnu_grmonty[:, :, -1], axis=0)
-        nuLnu_grmonty *= np.max(nuLnu) / np.max(nuLnu_grmonty)
+        nuLnu_grmonty = np.sum(nuLnu_grmonty[:, :, -1], axis=0)/nu_grmonty
+        nuLnu_grmonty *= np.max(output) / np.max(nuLnu_grmonty)
         hfp.close()
 
-        L1_norm = np.sum(np.abs(output - nuLnu_grmonty / nu))
+        L1_norm = np.sum(np.abs(output - nuLnu_grmonty))
         L1_norms.append(L1_norm)
 
     plt.figure()

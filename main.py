@@ -43,9 +43,9 @@ def main():
     # test_alpha_scattering(**domain_kwargs)
     # test_photon_beam_scattering(**domain_kwargs)
     # test_photon_beam_scattering_convergence(**domain_kwargs)
-    test_spectra_pozdnyakov("tests/test_pozdnyakov_spectra_nuLnu.txt",**domain_kwargs)
-    # test_spectra_pozdynakov(**domain_kwargs)
-
+    # test_spectra_pozdnyakov("tests/test_spectra_pozdnyakov_nuLnu.txt",grmonty_file="/home/avjoshi2/igrmonty/spectrum.h5",**domain_kwargs)
+    test_spectra_pozdnyakov(grmonty_file="/home/avjoshi2/igrmonty/spectrum.h5",**domain_kwargs)
+    # test_spectra_pozdnyakov_convergence(**domain_kwargs)
 
 if __name__ == "__main__":
     main()
