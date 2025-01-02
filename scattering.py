@@ -170,7 +170,7 @@ def sample_klein_nishina(k0):
     while(1):
         k0p_test = k0pmin + (k0pmax - k0pmin) * sampling.sample_1d()
 
-        x1 = 2 * (1 + 2*k0 + 2 *k0**2)/(k0**2 * (1+2*k0))
+        x1 = 2 * (1 + 2*k0 + 2*k0**2)/(k0**2 * (1 + 2*k0))
         x1*=sampling.sample_1d()
         ncount+=1
         if(x1<klein_nishina_differential(k0,k0p_test)):
@@ -246,24 +246,27 @@ def test_sample_kn():
     plt.tight_layout()
     plt.savefig("tests/plots/scattering_kleinnishina_sampling.png")
 
+@utils.time_function
 def test_sample_kn_convergence():
     from scipy import integrate
-    k0 = 0.18614589527035774
-    num_samples_array = np.logspace(2, 6, 100, base=10)
+    # k0 = 0.18614589527035774
+    # k0=1e-4
+    k0=0.7
+    num_samples_array = np.logspace(2, 6, 20, base=10,dtype=int)
     errors = []
     nbins = 100
-    for num_samples in map(int, num_samples_array):
+    for num_samples in num_samples_array[:]:
         sampled_values = [sample_klein_nishina(k0) for _ in range(num_samples)]
         hist, bin_edges = np.histogram(sampled_values, bins=nbins, density=True)
         bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
         # print(bin_edges.shape);exit()
-        pdf = lambda x: 3/8 / hotcross.sigma_kn(x) * klein_nishina_differential(k0, x)
-        bin_width = np.diff(bin_edges)
-        # analytic_values = [integrate.quad(pdf, bin_edges[i], bin_edges[i+1])[0]/bin_width for i in range(nbins)]
-        # print(analytic_values/np.diff(bin_edges))
-        analytic_values = pdf(bin_centers)
+        pdf = lambda x: 3/8 / hotcross.sigma_kn(k0) * klein_nishina_differential(k0, x)
+        bin_width = np.mean(np.diff(bin_edges))
+        analytic_values = [integrate.quad(pdf, bin_edges[i], bin_edges[i+1])[0] for i in range(nbins)]
+        # print(analytic_values)
+        # analytic_values = pdf(bin_centers)
         # print(analytic_values);exit()
-        error = np.sum(np.abs(hist - analytic_values) * bin_width)
+        error = np.sum(np.abs(hist*bin_width - analytic_values))
         errors.append(error)
 
     plt.loglog(num_samples_array, errors, label='L1 Error')
